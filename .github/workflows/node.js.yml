@@ -63,21 +63,29 @@ jobs:
   sonar-forntend:
     runs-on: Agent-1
     needs: trivy_fs_scan
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: SonarQube Scan (client)
-        uses: sonarsource/sonarqube-scan-action@master
-        with:
-          projectBaseDir: client
-          args: >
-            -Dsonar.projectKey=myorg_client
-            -Dsonar.projectName=myorg_client
-            -Dsonar.sources=.
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install unzip
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip
+
+    - name: SonarQube Scan (client)
+      uses: SonarSource/sonarqube-scan-action@v6
+      with:
+        projectBaseDir: client
+        args: >
+          -Dsonar.projectKey=myorg_client
+          -Dsonar.projectName=myorg_client
+          -Dsonar.sources=.
+          -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
           
   sonar-backend:
     runs-on: Agent-1
