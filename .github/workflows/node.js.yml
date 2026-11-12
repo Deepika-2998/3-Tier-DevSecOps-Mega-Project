@@ -174,39 +174,70 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
-  deploy_to_kubernetes: 
+  
+  deploy_to_kubernetes:
     runs-on: Agent-1
     needs: trivy_image_scan
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Install AWS CLI
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install --update
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.EKS_KUBECONFIG }}" > $HOME/.kube/config
-      - name: Deploy to EKS
-        run: |
-          kubectl apply -f k8s-prod/sc.yaml
-          kubectl apply -f k8s-prod/mysql.yaml
-          kubectl apply -f k8s-prod/backend.yaml
-          kubectl apply -f k8s-prod/frontend.yaml
-          kubectl apply -f k8s-prod/ci.yaml
-          kubectl apply -f k8s-prod/ingress.yaml
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: latest
+
+    - name: Configure kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.EKS_KUBECONFIG }}" > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+
+    - name: Verify EKS connection
+      run: |
+        kubectl get nodes
+
+    - name: Create production namespace
+      run: |
+        kubectl create namespace prod \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy StorageClass
+      run: |
+        kubectl apply -f k8s-prod/sc.yaml
+
+    - name: Deploy MySQL
+      run: |
+        kubectl apply -f k8s-prod/mysql.yaml
+
+    - name: Deploy Backend
+      run: |
+        kubectl apply -f k8s-prod/backend.yaml
+
+    - name: Deploy Frontend
+      run: |
+        kubectl apply -f k8s-prod/frontend.yaml
+
+    - name: Deploy CI
+      run: |
+        kubectl apply -f k8s-prod/ci.yaml
+
+    - name: Deploy Ingress
+      run: |
+        kubectl apply -f k8s-prod/ingress.yaml
+
+    - name: Verify deployment
+      run: |
+        kubectl get all -n prod
+        kubectl get pvc -n prod
+        kubectl get ingress -n prod
         
           
   
